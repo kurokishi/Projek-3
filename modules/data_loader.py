@@ -1,4 +1,5 @@
-# data_loader.py - Modul analisis
-
-def dummy():
-    pass
+def load_portfolio(tickers, lots):
+    return pd.DataFrame({
+        "ticker": tickers,
+        "lot": lots
+    })

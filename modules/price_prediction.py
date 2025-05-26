@@ -1,4 +1,4 @@
-# price_prediction.py - Modul analisis
+# price_prediction.py (dinonaktifkan untuk sementara)
 
-def dummy():
-    pass
+def predict_price(*args, **kwargs):
+    return []

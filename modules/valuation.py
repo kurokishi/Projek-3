@@ -1,5 +1,5 @@
 import streamlit as st
-from .valuation_core import get_valuation_metrics  # jika Anda pisahkan fungsi
+#from .valuation_core import get_valuation_metrics  # jika Anda pisahkan fungsi
 
 def display_valuation(df):
     st.subheader("Analisis Valuasi Saham")

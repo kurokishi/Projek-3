@@ -1,0 +1,12 @@
+[
+    {
+        "ticker": "BBCA.JK",
+        "lot": 10,
+        "avg_price": 8500
+    },
+    {
+        "ticker": "TLKM.JK",
+        "lot": 15,
+        "avg_price": 4000
+    }
+]

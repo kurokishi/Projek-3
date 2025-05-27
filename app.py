@@ -3,8 +3,8 @@ from datetime import datetime, timedelta
 import requests
 from bs4 import BeautifulSoup
 import matplotlib.pyplot as plt
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import MinMaxScaler
+from scikit-learn.ensemble import RandomForestRegressor
+from scikit-learn.preprocessing import MinMaxScaler
 
 # ======= FUNGSI ANALISIS LANJUTAN =======
 

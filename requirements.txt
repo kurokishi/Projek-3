@@ -2,6 +2,7 @@ streamlit
 yfinance
 pandas
 matplotlib
+sklearn
 numpy
 plotly
 ta

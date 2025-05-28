@@ -101,6 +101,20 @@ def scrape_sentimen(ticker):
     except:
         return None
 
+# ======= FORM INPUT PORTOFOLIO =======
+st.sidebar.header("📝 Input Saham Anda")
+
+with st.sidebar.form("input_saham_form"):
+    kode = st.text_input("Kode Saham (misal: UNVR)", "")
+    jumlah = st.number_input("Jumlah Lot", min_value=1, value=1)
+    harga_beli = st.number_input("Harga Beli per Lembar", min_value=1, value=1000)
+    submit = st.form_submit_button("Tambah ke Portofolio")
+
+if submit and kode:
+    total_saham = jumlah * 100
+    portofolio[kode.upper()] = total_saham
+    st.success(f"{total_saham} lembar saham {kode.upper()} berhasil ditambahkan.")
+
 # ======= START APLIKASI STREAMLIT =======
 
 if __name__ == '__main__':
@@ -116,4 +130,3 @@ if __name__ == '__main__':
         return f"Rp{x:,.0f}".replace(",", ".")
 
     st.success("Portofolio berhasil dimuat untuk testing.")
-        

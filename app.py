@@ -157,6 +157,12 @@ if portofolio:
 else:
     st.info("Portofolio kosong. Silakan masukkan data di sidebar.")
 
+def format_rupiah(x):
+    try:
+        return f"Rp{x:,.0f}".replace(",", ".")
+    except:
+        return "Rp0"
+
 # ======= START APLIKASI STREAMLIT =======
 st.title("📈 Aplikasi Analisis Saham Kurokishi")
 st.write("Selamat datang! Silakan eksplorasi fitur analisis saham di bawah.")
@@ -170,4 +176,4 @@ def format_rupiah(x):
     return f"Rp{x:,.0f}".replace(",", ".")
 
 st.success("Portofolio berhasil dimuat.")
-            
+    

@@ -14,7 +14,6 @@ from sklearn.preprocessing import MinMaxScaler
 # ======= FUNGSI ANALISIS LANJUTAN =======
 
 def analisis_valuasi_mendalam(info, harga_terakhir):
-    """Analisis fundamental dengan lebih detail"""
     hasil = {
         'PER_vs_Industri': 'N/A',
         'Margin_Keamanan': 'N/A',
@@ -45,7 +44,6 @@ def analisis_valuasi_mendalam(info, harga_terakhir):
     return hasil
 
 def prediksi_harga_lstm(df, periode=30):
-    """Prediksi harga dengan model LSTM sederhana"""
     try:
         from keras.models import Sequential
         from keras.layers import LSTM, Dense
@@ -84,7 +82,6 @@ def prediksi_harga_lstm(df, periode=30):
         return None
 
 def scrape_sentimen(ticker):
-    """Scraping berita dan analisis sentimen sederhana"""
     try:
         berita = {
             'judul': [],
@@ -103,4 +100,20 @@ def scrape_sentimen(ticker):
         return berita
     except:
         return None
+
+# ======= START APLIKASI STREAMLIT =======
+
+if __name__ == '__main__':
+    st.set_page_config(page_title="Analisis Saham", layout="wide")
+    st.title("📈 Aplikasi Analisis Saham Kurokishi")
+    st.write("Selamat datang! Silakan eksplorasi fitur analisis saham di bawah.")
+
+    # Dummy data sementara
+    portofolio = {'UNVR': 60, 'ANTM': 15}
+    total_nilai = 100_000_000
+
+    def format_rupiah(x):
+        return f"Rp{x:,.0f}".replace(",", ".")
+
+    st.success("Portofolio berhasil dimuat untuk testing.")
         

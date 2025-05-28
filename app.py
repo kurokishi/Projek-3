@@ -34,7 +34,10 @@ with st.sidebar.form("input_saham_form"):
 
 if submit and kode:
     total_saham = jumlah * 100
-    st.session_state.portofolio[kode.upper()] = total_saham
+    st.session_state.portofolio[kode.upper()] = {
+        'jumlah': total_saham,
+        'harga_beli': harga_beli
+    }
     st.success(f"{total_saham} lembar saham {kode.upper()} berhasil ditambahkan.")
 
 # ======= FUNGSI ANALISIS LANJUTAN =======
@@ -140,9 +143,12 @@ for kode, data in portofolio.items():
 def ambil_harga_terakhir(ticker):
     try:
         ticker_obj = yf.Ticker(ticker + ".JK")
-        harga_terakhir = ticker_obj.info.get("regularMarketPrice")
-        return harga_terakhir
-    except:
+        harga = ticker_obj.info.get("regularMarketPrice")
+        if not harga:
+            harga = ticker_obj.fast_info.get("last_price")
+        return harga
+    except Exception as e:
+        st.warning(f"Gagal mengambil harga untuk {ticker}: {e}")
         return None
 if portofolio:
     data_porto = []
@@ -157,7 +163,7 @@ if portofolio:
             'Harga Beli': format_rupiah(harga_beli),
             'Total Investasi': format_rupiah(total),
             'Harga Terakhir': format_rupiah(harga_now) if harga_now else 'N/A',
-            'Keuntungan/Rugi (%)': f"{((harga_now - harga_beli) / harga_beli * 100):.2f}%" if harga_now else 'N/A'
+            'Keuntungan/Rugi (%)': f"{((harga_now - harga_beli) / harga_beli * 100):.2f}%" if harga_now and harga_beli else 'N/A'
         })
     df_porto = pd.DataFrame(data_porto)
     st.subheader("📋 Portofolio Saat Ini")

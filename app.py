@@ -2,6 +2,12 @@ import streamlit as st
 st.set_page_config(page_title="Analisis Saham", layout="wide")
 
 import yfinance as yf
+def format_rupiah(x):
+    try:
+        return f"Rp{x:,.0f}".replace(",", ".")
+    except:
+        return "Rp0"
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt

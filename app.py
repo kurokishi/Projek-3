@@ -123,11 +123,35 @@ def scrape_sentimen(ticker):
 
 # ======= TABEL PORTOFOLIO PENGGUNA =======
 portofolio = st.session_state.portofolio
+
+# Struktur portofolio: { 'UNVR': {'jumlah': 300, 'harga_beli': 4500} }
+# Update struktur jika hanya berisi angka (lama)
+for kode, data in portofolio.items():
+    if isinstance(data, int):
+        portofolio[kode] = {'jumlah': data, 'harga_beli': 1000}
+
+# Ambil harga pasar terbaru
+def ambil_harga_terakhir(ticker):
+    try:
+        data = yf.Ticker(ticker + ".JK").history(period="1d")
+        return data['Close'].iloc[-1]
+    except:
+        return None
 if portofolio:
-    df_porto = pd.DataFrame({
-        'Kode Saham': list(portofolio.keys()),
-        'Jumlah Lembar': list(portofolio.values())
-    })
+    data_porto = []
+    for kode, data in portofolio.items():
+        jumlah = data['jumlah']
+        harga_beli = data['harga_beli']
+        total = jumlah * harga_beli
+        harga_now = ambil_harga_terakhir(kode)
+        data_porto.append({
+            'Kode Saham': kode,
+            'Jumlah Lembar': jumlah,
+            'Harga Beli': format_rupiah(harga_beli),
+            'Total Investasi': format_rupiah(total),
+            'Harga Terakhir': format_rupiah(harga_now) if harga_now else 'N/A'
+        })
+    df_porto = pd.DataFrame(data_porto)
     st.subheader("📋 Portofolio Saat Ini")
     st.dataframe(df_porto, use_container_width=True)
 else:
@@ -146,4 +170,4 @@ def format_rupiah(x):
     return f"Rp{x:,.0f}".replace(",", ".")
 
 st.success("Portofolio berhasil dimuat.")
-        
+            

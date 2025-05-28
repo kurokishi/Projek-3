@@ -3,6 +3,9 @@ pandas>=2.2.0
 yfinance
 numpy
 ta
+matplotlib
+keras
+beautifulsoup4
 plotly>=5.18.0
 scikit-learn
 requests

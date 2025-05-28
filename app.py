@@ -1,4 +1,6 @@
 import streamlit as st
+st.set_page_config(page_title="Analisis Saham", layout="wide")
+
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -10,6 +12,24 @@ from bs4 import BeautifulSoup
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import MinMaxScaler
+
+# Inisialisasi session state
+if 'portofolio' not in st.session_state:
+    st.session_state.portofolio = {}
+
+# ======= FORM INPUT PORTOFOLIO =======
+st.sidebar.header("📝 Input Saham Anda")
+
+with st.sidebar.form("input_saham_form"):
+    kode = st.text_input("Kode Saham (misal: UNVR)", "")
+    jumlah = st.number_input("Jumlah Lot", min_value=1, value=1)
+    harga_beli = st.number_input("Harga Beli per Lembar", min_value=1, value=1000)
+    submit = st.form_submit_button("Tambah ke Portofolio")
+
+if submit and kode:
+    total_saham = jumlah * 100
+    st.session_state.portofolio[kode.upper()] = total_saham
+    st.success(f"{total_saham} lembar saham {kode.upper()} berhasil ditambahkan.")
 
 # ======= FUNGSI ANALISIS LANJUTAN =======
 
@@ -101,32 +121,27 @@ def scrape_sentimen(ticker):
     except:
         return None
 
-# ======= FORM INPUT PORTOFOLIO =======
-st.sidebar.header("📝 Input Saham Anda")
-
-with st.sidebar.form("input_saham_form"):
-    kode = st.text_input("Kode Saham (misal: UNVR)", "")
-    jumlah = st.number_input("Jumlah Lot", min_value=1, value=1)
-    harga_beli = st.number_input("Harga Beli per Lembar", min_value=1, value=1000)
-    submit = st.form_submit_button("Tambah ke Portofolio")
-
-if submit and kode:
-    total_saham = jumlah * 100
-    portofolio[kode.upper()] = total_saham
-    st.success(f"{total_saham} lembar saham {kode.upper()} berhasil ditambahkan.")
+# ======= TABEL PORTOFOLIO PENGGUNA =======
+if portofolio:
+    df_porto = pd.DataFrame({
+        'Kode Saham': list(portofolio.keys()),
+        'Jumlah Lembar': list(portofolio.values())
+    })
+    st.subheader("📋 Portofolio Saat Ini")
+    st.dataframe(df_porto, use_container_width=True)
+else:
+    st.info("Portofolio kosong. Silakan masukkan data di sidebar.")
 
 # ======= START APLIKASI STREAMLIT =======
+st.title("📈 Aplikasi Analisis Saham Kurokishi")
+st.write("Selamat datang! Silakan eksplorasi fitur analisis saham di bawah.")
 
-if __name__ == '__main__':
-    st.set_page_config(page_title="Analisis Saham", layout="wide")
-    st.title("📈 Aplikasi Analisis Saham Kurokishi")
-    st.write("Selamat datang! Silakan eksplorasi fitur analisis saham di bawah.")
+portofolio = st.session_state.portofolio
 
-    # Dummy data sementara
-    portofolio = {'UNVR': 60, 'ANTM': 15}
-    total_nilai = 100_000_000
+# Dummy total nilai awal
+total_nilai = 100_000_000
 
-    def format_rupiah(x):
-        return f"Rp{x:,.0f}".replace(",", ".")
+def format_rupiah(x):
+    return f"Rp{x:,.0f}".replace(",", ".")
 
-    st.success("Portofolio berhasil dimuat untuk testing.")
+st.success("Portofolio berhasil dimuat.")

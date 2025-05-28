@@ -122,6 +122,7 @@ def scrape_sentimen(ticker):
         return None
 
 # ======= TABEL PORTOFOLIO PENGGUNA =======
+portofolio = st.session_state.portofolio
 if portofolio:
     df_porto = pd.DataFrame({
         'Kode Saham': list(portofolio.keys()),
@@ -145,3 +146,4 @@ def format_rupiah(x):
     return f"Rp{x:,.0f}".replace(",", ".")
 
 st.success("Portofolio berhasil dimuat.")
+        

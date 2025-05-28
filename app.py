@@ -139,8 +139,9 @@ for kode, data in portofolio.items():
 # Ambil harga pasar terbaru
 def ambil_harga_terakhir(ticker):
     try:
-        data = yf.Ticker(ticker + ".JK").history(period="1d")
-        return data['Close'].iloc[-1]
+        ticker_obj = yf.Ticker(ticker + ".JK")
+        harga_terakhir = ticker_obj.info.get("regularMarketPrice")
+        return harga_terakhir
     except:
         return None
 if portofolio:
@@ -155,7 +156,8 @@ if portofolio:
             'Jumlah Lembar': jumlah,
             'Harga Beli': format_rupiah(harga_beli),
             'Total Investasi': format_rupiah(total),
-            'Harga Terakhir': format_rupiah(harga_now) if harga_now else 'N/A'
+            'Harga Terakhir': format_rupiah(harga_now) if harga_now else 'N/A',
+            'Keuntungan/Rugi (%)': f"{((harga_now - harga_beli) / harga_beli * 100):.2f}%" if harga_now else 'N/A'
         })
     df_porto = pd.DataFrame(data_porto)
     st.subheader("📋 Portofolio Saat Ini")
@@ -182,4 +184,4 @@ def format_rupiah(x):
     return f"Rp{x:,.0f}".replace(",", ".")
 
 st.success("Portofolio berhasil dimuat.")
-    
+        

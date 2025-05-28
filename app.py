@@ -146,9 +146,11 @@ def ambil_harga_terakhir(ticker):
         harga = ticker_obj.info.get("regularMarketPrice")
         if not harga:
             harga = ticker_obj.fast_info.get("last_price")
+        if not harga:
+            harga = ticker_obj.history(period="5d")["Close"].dropna().iloc[-1]
         return harga
     except Exception as e:
-        st.warning(f"Gagal mengambil harga untuk {ticker}: {e}")
+        st.warning(f"Gagal mengambil harga untuk {ticker}.JK: {e}")
         return None
 if portofolio:
     data_porto = []
@@ -190,4 +192,4 @@ def format_rupiah(x):
     return f"Rp{x:,.0f}".replace(",", ".")
 
 st.success("Portofolio berhasil dimuat.")
-        
+                       

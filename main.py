@@ -92,6 +92,37 @@ def proyeksi_investasi(modal_awal, tambahan_bulanan, tingkat_bunga, tahun):
             hasil.append((bulan//12, saldo))
     return hasil
 
+def hitung_alokasi_dana(modal, portofolio, harga_saham_terkini):
+    """Menghitung alokasi dana ke masing-masing saham"""
+    total_nilai_portofolio = sum(data['total_investasi'] for data in portofolio.values())
+    
+    if total_nilai_portofolio == 0:
+        return []
+    
+    alokasi = []
+    for ticker, data in portofolio.items():
+        proporsi = data['total_investasi'] / total_nilai_portofolio
+        dana_dialokasikan = modal * proporsi
+        
+        if ticker in harga_saham_terkini and harga_saham_terkini[ticker] > 0:
+            harga_per_lot = harga_saham_terkini[ticker] * 100  # 1 lot = 100 lembar
+            jumlah_lot = int(dana_dialokasikan // harga_per_lot)
+            nilai_pembelian = jumlah_lot * harga_per_lot
+        else:
+            jumlah_lot = 0
+            nilai_pembelian = 0
+        
+        alokasi.append({
+            'Saham': ticker,
+            'Proporsi': proporsi,
+            'Dana Dialokasikan': dana_dialokasikan,
+            'Harga Terkini': harga_saham_terkini.get(ticker, 0),
+            'Jumlah Lot': jumlah_lot,
+            'Nilai Pembelian': nilai_pembelian
+        })
+    
+    return alokasi
+
 def tampilkan_status_sistem():
     """Menampilkan panel status dependency"""
     with st.expander("ℹ️ Status Sistem", expanded=True):
@@ -144,6 +175,13 @@ def main():
     if not portofolio:
         st.info("Belum ada saham dalam portofolio. Silakan tambahkan saham dari sidebar.")
         return
+    
+    # Ambil harga terkini untuk semua saham di portofolio
+    harga_terkini = {}
+    for ticker in portofolio.keys():
+        hist, _ = ambil_data_saham(ticker)
+        if not hist.empty:
+            harga_terkini[ticker] = hist['Close'].iloc[-1]
     
     # Hitung total portofolio
     total_portofolio = sum(data['total_investasi'] for data in portofolio.values())
@@ -277,6 +315,60 @@ def main():
                 height=400
             )
             st.plotly_chart(fig2, use_container_width=True)
+        
+        # Bagian baru: Alokasi Dana dan Pembelian Saham
+        st.subheader("Alokasi Dana dan Pembelian Saham")
+        
+        col3, col4 = st.columns(2)
+        
+        with col3:
+            modal_tersedia = st.number_input("Modal yang Tersedia (Rp)", min_value=0, value=10000000, step=1000000)
+            
+            if st.button("Hitung Alokasi Dana"):
+                if not portofolio:
+                    st.warning("Portofolio masih kosong. Silakan tambahkan saham terlebih dahulu.")
+                else:
+                    alokasi_dana = hitung_alokasi_dana(modal_tersedia, portofolio, harga_terkini)
+                    
+                    if alokasi_dana:
+                        # Buat DataFrame untuk tampilan yang lebih rapi
+                        df_alokasi = pd.DataFrame(alokasi_dana)
+                        df_alokasi['Proporsi'] = df_alokasi['Proporsi'].apply(lambda x: f"{x*100:.1f}%")
+                        df_alokasi['Dana Dialokasikan'] = df_alokasi['Dana Dialokasikan'].apply(format_rupiah)
+                        df_alokasi['Harga Terkini'] = df_alokasi['Harga Terkini'].apply(format_rupiah)
+                        df_alokasi['Nilai Pembelian'] = df_alokasi['Nilai Pembelian'].apply(format_rupiah)
+                        
+                        # Tampilkan tabel alokasi
+                        st.write("### Alokasi Dana ke Masing-masing Saham")
+                        st.dataframe(df_alokasi[['Saham', 'Proporsi', 'Dana Dialokasikan', 
+                                               'Harga Terkini', 'Jumlah Lot', 'Nilai Pembelian']])
+                        
+                        # Hitung total yang teralokasi
+                        total_teralokasi = sum(item['Nilai Pembelian'] for item in alokasi_dana)
+                        sisa_dana = modal_tersedia - total_teralokasi
+                        
+                        st.metric("Total Dana Teralokasi", format_rupiah(total_teralokasi))
+                        st.metric("Sisa Dana", format_rupiah(sisa_dana))
+                    else:
+                        st.warning("Tidak dapat menghitung alokasi dana. Pastikan portofolio memiliki nilai.")
+        
+        with col4:
+            if 'alokasi_dana' in locals():
+                st.write("### Visualisasi Alokasi Dana")
+                
+                # Buat pie chart untuk proporsi alokasi
+                fig_pie = go.Figure()
+                fig_pie.add_trace(go.Pie(
+                    labels=df_alokasi['Saham'],
+                    values=[float(x.replace('Rp', '').replace('.', '')) for x in df_alokasi['Nilai Pembelian']],
+                    textinfo='label+percent',
+                    insidetextorientation='radial'
+                ))
+                fig_pie.update_layout(
+                    title="Proporsi Alokasi Dana",
+                    height=400
+                )
+                st.plotly_chart(fig_pie, use_container_width=True)
 
 if __name__ == "__main__":
     main()

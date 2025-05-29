@@ -73,6 +73,10 @@ def ambil_data_saham(ticker):
         st.error(f"❌ Gagal mengambil data {ticker}: {str(e)}")
         return pd.DataFrame(), {}
 
+def format_rupiah(nilai):
+    """Memformat angka menjadi format mata uang Rupiah"""
+    return f"Rp{round(nilai):,}".replace(",", ".")
+
 def tampilkan_status_sistem():
     """Menampilkan panel status dependency"""
     with st.expander("ℹ️ Status Sistem", expanded=True):
@@ -94,10 +98,22 @@ def main():
         st.write("**Tambahkan Saham Baru**")
         ticker = st.text_input("Kode Saham (contoh: AAPL, BBCA.JK)", key="input_ticker").upper().strip()
         lot = st.number_input("Jumlah Lot", min_value=1, step=1, key="input_lot")
+        harga_per_lembar = st.number_input("Harga per Lembar (Rp)", min_value=1, step=100, key="input_harga")
         
         if st.form_submit_button("💾 Simpan"):
             if ticker:
-                portofolio[ticker] = portofolio.get(ticker, 0) + lot
+                # Simpan data saham dalam format dictionary yang lebih lengkap
+                if ticker not in portofolio:
+                    portofolio[ticker] = {
+                        'lot': 0,
+                        'harga_per_lembar': 0,
+                        'total_investasi': 0
+                    }
+                
+                portofolio[ticker]['lot'] += lot
+                portofolio[ticker]['harga_per_lembar'] = harga_per_lembar
+                portofolio[ticker]['total_investasi'] += lot * 100 * harga_per_lembar  # 1 lot = 100 lembar
+                
                 simpan_portofolio(portofolio)
                 st.success(f"Berhasil menambahkan {ticker}")
             else:
@@ -113,7 +129,11 @@ def main():
         st.info("Belum ada saham dalam portofolio. Silakan tambahkan saham dari sidebar.")
         return
     
-    for ticker, lot in portofolio.items():
+    for ticker, data in portofolio.items():
+        lot = data['lot']
+        harga_per_lembar = data.get('harga_per_lembar', 0)
+        total_investasi = data.get('total_investasi', 0)
+        
         with st.expander(f"📈 {ticker} ({lot} lot)", expanded=True):
             if not YFINANCE_ENABLED:
                 st.error("Tidak bisa mengambil data: yfinance tidak tersedia")
@@ -125,11 +145,12 @@ def main():
                 continue
                 
             # Tampilkan data dasar
-            col1, col2 = st.columns(2)
-            col1.metric("Harga Terakhir", f"${hist['Close'].iloc[-1]:.2f}")
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Harga Terakhir", format_rupiah(hist['Close'].iloc[-1]))
+            col2.metric("Harga Beli", format_rupiah(harga_per_lembar))
+            col3.metric("Total Investasi", format_rupiah(total_investasi))
             
             if info:
-                col2.metric("Market Cap", f"${info.get('marketCap', 'N/A'):,}")
                 st.write(f"**Industri:** {info.get('industry', 'N/A')}")
             
             # Tampilkan grafik harga
@@ -142,7 +163,7 @@ def main():
             fig.update_layout(
                 title=f"Performa {ticker}",
                 xaxis_title="Tanggal",
-                yaxis_title="Harga ($)",
+                yaxis_title="Harga (Rp)",
                 height=400
             )
             st.plotly_chart(fig, use_container_width=True)

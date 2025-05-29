@@ -1,4 +1,2 @@
-libglib2.0-0
-libsm6
-libxext6
-libxrender-dev
+libpython3.10-dev
+python3.10-distutils

@@ -4,6 +4,7 @@ import os
 import json
 import pandas as pd
 import plotly.graph_objects as go
+import numpy as np
 from datetime import datetime, timedelta
 
 # ======== Konfigurasi Awal ========
@@ -77,6 +78,20 @@ def format_rupiah(nilai):
     """Memformat angka menjadi format mata uang Rupiah"""
     return f"Rp{round(nilai):,}".replace(",", ".")
 
+def hitung_bunga_majemuk(modal_awal, tingkat_bunga, tahun):
+    """Menghitung bunga majemuk untuk proyeksi investasi"""
+    return modal_awal * (1 + tingkat_bunga/100) ** tahun
+
+def proyeksi_investasi(modal_awal, tambahan_bulanan, tingkat_bunga, tahun):
+    """Menghitung proyeksi investasi dengan kontribusi bulanan"""
+    hasil = []
+    saldo = modal_awal
+    for bulan in range(1, tahun * 12 + 1):
+        saldo = saldo * (1 + tingkat_bunga/100/12) + tambahan_bulanan
+        if bulan % 12 == 0:
+            hasil.append((bulan//12, saldo))
+    return hasil
+
 def tampilkan_status_sistem():
     """Menampilkan panel status dependency"""
     with st.expander("ℹ️ Status Sistem", expanded=True):
@@ -107,7 +122,8 @@ def main():
                     portofolio[ticker] = {
                         'lot': 0,
                         'harga_per_lembar': 0,
-                        'total_investasi': 0
+                        'total_investasi': 0,
+                        'tgl_beli': datetime.now().strftime("%Y-%m-%d")
                     }
                 
                 portofolio[ticker]['lot'] += lot
@@ -129,59 +145,138 @@ def main():
         st.info("Belum ada saham dalam portofolio. Silakan tambahkan saham dari sidebar.")
         return
     
-    for ticker, data in portofolio.items():
-        lot = data['lot']
-        harga_per_lembar = data.get('harga_per_lembar', 0)
-        total_investasi = data.get('total_investasi', 0)
+    # Hitung total portofolio
+    total_portofolio = sum(data['total_investasi'] for data in portofolio.values())
+    st.subheader(f"Total Nilai Portofolio: {format_rupiah(total_portofolio)}")
+    
+    # Tab untuk portofolio dan analisis
+    tab1, tab2 = st.tabs(["Detail Portofolio", "Analisis & Proyeksi"])
+    
+    with tab1:
+        for ticker, data in portofolio.items():
+            lot = data['lot']
+            harga_per_lembar = data.get('harga_per_lembar', 0)
+            total_investasi = data.get('total_investasi', 0)
+            tgl_beli = data.get('tgl_beli', '-')
+            
+            with st.expander(f"📈 {ticker} ({lot} lot)", expanded=True):
+                if not YFINANCE_ENABLED:
+                    st.error("Tidak bisa mengambil data: yfinance tidak tersedia")
+                    continue
+                    
+                hist, info = ambil_data_saham(ticker)
+                if hist.empty:
+                    st.warning(f"Data historis untuk {ticker} tidak tersedia")
+                    continue
+                    
+                # Tampilkan data dasar
+                col1, col2, col3, col4 = st.columns(4)
+                col1.metric("Harga Terakhir", format_rupiah(hist['Close'].iloc[-1]))
+                col2.metric("Harga Beli", format_rupiah(harga_per_lembar))
+                col3.metric("Total Investasi", format_rupiah(total_investasi))
+                col4.metric("Tanggal Beli", tgl_beli)
+                
+                # Hitung keuntungan/kerugian
+                nilai_sekarang = lot * 100 * hist['Close'].iloc[-1]
+                keuntungan = nilai_sekarang - total_investasi
+                persentase_keuntungan = (keuntungan / total_investasi) * 100 if total_investasi != 0 else 0
+                
+                st.metric("Nilai Saat Ini", 
+                         format_rupiah(nilai_sekarang),
+                         delta=f"{persentase_keuntungan:.2f}%")
+                
+                if info:
+                    st.write(f"**Industri:** {info.get('industry', 'N/A')}")
+                
+                # Tampilkan grafik harga
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=hist.index,
+                    y=hist['Close'],
+                    name="Harga Penutupan"
+                ))
+                fig.update_layout(
+                    title=f"Performa {ticker}",
+                    xaxis_title="Tanggal",
+                    yaxis_title="Harga (Rp)",
+                    height=400
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Tampilkan indikator teknikal jika tersedia
+                if TA_ENABLED:
+                    st.subheader("Analisis Teknikal")
+                    df_teknikal = hist.copy()
+                    df_teknikal['RSI'] = RSIIndicator(df_teknikal['Close'], window=14).rsi()
+                    
+                    fig_rsi = go.Figure()
+                    fig_rsi.add_trace(go.Scatter(
+                        x=df_teknikal.index,
+                        y=df_teknikal['RSI'],
+                        name="RSI 14"
+                    ))
+                    fig_rsi.update_layout(height=300)
+                    st.plotly_chart(fig_rsi, use_container_width=True)
+    
+    with tab2:
+        st.header("Analisis Bunga Majemuk & Proyeksi Investasi")
         
-        with st.expander(f"📈 {ticker} ({lot} lot)", expanded=True):
-            if not YFINANCE_ENABLED:
-                st.error("Tidak bisa mengambil data: yfinance tidak tersedia")
-                continue
-                
-            hist, info = ambil_data_saham(ticker)
-            if hist.empty:
-                st.warning(f"Data historis untuk {ticker} tidak tersedia")
-                continue
-                
-            # Tampilkan data dasar
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Harga Terakhir", format_rupiah(hist['Close'].iloc[-1]))
-            col2.metric("Harga Beli", format_rupiah(harga_per_lembar))
-            col3.metric("Total Investasi", format_rupiah(total_investasi))
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Kalkulator Bunga Majemuk")
+            modal_awal = st.number_input("Modal Awal (Rp)", min_value=0, value=int(total_portofolio), step=100000)
+            tingkat_bunga = st.number_input("Tingkat Bunga Tahunan (%)", min_value=0.0, max_value=100.0, value=10.0, step=0.5)
+            tahun = st.slider("Jangka Waktu (tahun)", 1, 30, 10)
             
-            if info:
-                st.write(f"**Industri:** {info.get('industry', 'N/A')}")
+            hasil = hitung_bunga_majemuk(modal_awal, tingkat_bunga, tahun)
+            st.metric(f"Nilai Investasi setelah {tahun} tahun", format_rupiah(hasil))
             
-            # Tampilkan grafik harga
+            # Grafik proyeksi
+            tahun_list = list(range(tahun + 1))
+            nilai_list = [hitung_bunga_majemuk(modal_awal, tingkat_bunga, t) for t in tahun_list]
+            
             fig = go.Figure()
             fig.add_trace(go.Scatter(
-                x=hist.index,
-                y=hist['Close'],
-                name="Harga Penutupan"
+                x=tahun_list,
+                y=nilai_list,
+                name="Proyeksi Nilai",
+                mode='lines+markers'
             ))
             fig.update_layout(
-                title=f"Performa {ticker}",
-                xaxis_title="Tanggal",
-                yaxis_title="Harga (Rp)",
+                title=f"Proyeksi Bunga Majemuk {tahun} Tahun",
+                xaxis_title="Tahun",
+                yaxis_title="Nilai Investasi (Rp)",
                 height=400
             )
             st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            st.subheader("Proyeksi dengan Tambahan Investasi Bulanan")
+            tambahan_bulanan = st.number_input("Tambahan Investasi Bulanan (Rp)", min_value=0, value=1000000, step=100000)
             
-            # Tampilkan indikator teknikal jika tersedia
-            if TA_ENABLED:
-                st.subheader("Analisis Teknikal")
-                df_teknikal = hist.copy()
-                df_teknikal['RSI'] = RSIIndicator(df_teknikal['Close'], window=14).rsi()
-                
-                fig_rsi = go.Figure()
-                fig_rsi.add_trace(go.Scatter(
-                    x=df_teknikal.index,
-                    y=df_teknikal['RSI'],
-                    name="RSI 14"
-                ))
-                fig_rsi.update_layout(height=300)
-                st.plotly_chart(fig_rsi, use_container_width=True)
+            hasil_proyeksi = proyeksi_investasi(modal_awal, tambahan_bulanan, tingkat_bunga, tahun)
+            
+            # Tabel hasil proyeksi
+            df_proyeksi = pd.DataFrame(hasil_proyeksi, columns=['Tahun', 'Nilai'])
+            df_proyeksi['Nilai'] = df_proyeksi['Nilai'].apply(lambda x: format_rupiah(x))
+            st.table(df_proyeksi)
+            
+            # Grafik proyeksi dengan tambahan bulanan
+            fig2 = go.Figure()
+            fig2.add_trace(go.Scatter(
+                x=df_proyeksi['Tahun'],
+                y=[float(x.replace('Rp', '').replace('.', '')) for x in df_proyeksi['Nilai']],
+                name="Proyeksi Nilai",
+                mode='lines+markers'
+            ))
+            fig2.update_layout(
+                title=f"Proyeksi dengan Tambahan Bulanan {tahun} Tahun",
+                xaxis_title="Tahun",
+                yaxis_title="Nilai Investasi (Rp)",
+                height=400
+            )
+            st.plotly_chart(fig2, use_container_width=True)
 
 if __name__ == "__main__":
     main()

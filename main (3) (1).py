@@ -30,7 +30,6 @@ class DummyModule:
 # Setup fallbacks dengan error handling lebih baik
 try:
     import yfinance as yf
-    yf.set_session(session)  # Set session dengan timeout
     YFINANCE_ENABLED = True
 except ImportError:
     yf = DummyModule()
@@ -46,59 +45,46 @@ except ImportError:
     TA_ENABLED = False
     st.sidebar.error("⚠️ Library TA tidak terinstall (pip install ta)")
 
-# ======== Fungsi Utama dengan Error Handling yang Diperbaiki ========
-def muat_portofolio(filename="portfolio.json"):
-    """Memuat data portofolio dari file JSON dengan error handling"""
-    try:
-        if os.path.exists(filename):
-            with open(filename, "r") as f:
-                return json.load(f)
-        return {}
-    except json.JSONDecodeError:
-        st.error("❌ File portofolio corrupt. Membuat portofolio baru.")
-        return {}
-    except Exception as e:
-        st.error(f"❌ Gagal memuat portofolio: {str(e)}")
-        return {}
-
-def simpan_portofolio(data, filename="portfolio.json"):
-    """Menyimpan data portofolio ke file JSON dengan backup"""
-    try:
-        # Buat backup jika file sudah ada
-        if os.path.exists(filename):
-            os.replace(filename, f"{filename}.bak")
-        with open(filename, "w") as f:
-            json.dump(data, f, indent=2)
-    except Exception as e:
-        st.error(f"❌ Gagal menyimpan portofolio: {str(e)}")
-        # Coba restore backup jika ada
-        if os.path.exists(f"{filename}.bak"):
-            os.replace(f"{filename}.bak", filename)
-
-def ambil_data_saham(ticker):
-    """Mengambil data saham dari Yahoo Finance dengan error handling yang lebih baik"""
+# ======== Fungsi Ambil Data Saham dengan Cache ========
+def ambil_data_saham(ticker, cache_dir="cache", ttl_jam=1):
     if not YFINANCE_ENABLED:
         return pd.DataFrame(), {}
-    
-    try:
-        saham = yf.Ticker(ticker)
+
+    os.makedirs(cache_dir, exist_ok=True)
+    path_hist = os.path.join(cache_dir, f"{ticker}_hist.csv")
+    path_info = os.path.join(cache_dir, f"{ticker}_info.json")
+
+    now = datetime.now()
+
+    def cache_valid(path):
+        return os.path.exists(path) and (now - datetime.fromtimestamp(os.path.getmtime(path))) < timedelta(hours=ttl_jam)
+
+    if cache_valid(path_hist):
         try:
-            # Coba dengan interval 1 hari dan cache
-            hist = saham.history(period="1y", interval="1d", max_age=3600)
-            info = saham.info
+            hist = pd.read_csv(path_hist, index_col=0, parse_dates=True)
+            info = {}
+            if os.path.exists(path_info):
+                with open(path_info, "r") as f:
+                    info = json.load(f)
             return hist, info
         except Exception as e:
-            st.warning(f"⚠️ Gagal mengambil data {ticker} dari API utama. Mencoba alternatif...")
-            try:
-                # Coba dengan interval berbeda
-                hist = saham.history(period="6mo", interval="1d")
-                info = {}
-                return hist, info
-            except Exception as alt_e:
-                st.error(f"❌ Gagal mengambil data {ticker}: {str(alt_e)}")
-                return pd.DataFrame(), {}
+            st.warning(f"⚠️ Gagal membaca cache untuk {ticker}, mengambil ulang...")
+
+    try:
+        saham = yf.Ticker(ticker)
+        hist = saham.history(period="1y", interval="1d")
+        info = getattr(saham, "info", {})
+
+        if not hist.empty:
+            hist.to_csv(path_hist)
+            with open(path_info, "w") as f:
+                json.dump(info, f, indent=2)
+            return hist, info
+        else:
+            st.warning(f"⚠️ Data historis {ticker} kosong")
+            return pd.DataFrame(), info
     except Exception as e:
-        st.error(f"❌ Error sistem saat mengakses {ticker}: {str(e)}")
+        st.error(f"❌ Gagal mengambil data {ticker}: {str(e)}")
         return pd.DataFrame(), {}
 
 def format_rupiah(nilai):

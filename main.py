@@ -17,7 +17,7 @@ st.sidebar.write(f"Python version: {python_version}")
 
 # ======== Setup Session dengan Timeout ========
 session = requests.Session()
-session.timeout = 10  # 10 detik timeout
+session.timeout = 10
 
 # ======== Dependency Fallbacks ========
 class DummyModule:
@@ -43,6 +43,14 @@ except ImportError:
     RSIIndicator = MACD = SMAIndicator = DummyModule()
     TA_ENABLED = False
     st.sidebar.error("⚠️ Library TA tidak terinstall (pip install ta)")
+
+try:
+    from prophet import Prophet
+    PROPHET_ENABLED = True
+except ImportError:
+    Prophet = DummyModule()
+    PROPHET_ENABLED = False
+    st.sidebar.error("⚠️ Prophet tidak terinstall (pip install prophet)")
 
 # ======== Fungsi Portofolio ========
 def muat_portofolio(filename="portfolio.json"):
@@ -111,13 +119,64 @@ def ambil_data_saham(ticker, cache_dir="cache", ttl_jam=1):
         st.error(f"❌ Gagal mengambil data {ticker}: {str(e)}")
         return pd.DataFrame(), {}
 
-# ======== Fungsi Lainnya ========
+# ======== Fungsi Prediksi Harga Saham dengan Prophet ========
+def prediksi_harga_saham_prophet(ticker, periode_hari=30):
+    if not PROPHET_ENABLED:
+        st.warning("Modul Prophet tidak tersedia")
+        return
+
+    hist, _ = ambil_data_saham(ticker)
+    if hist.empty:
+        st.warning("Tidak ada data historis untuk prediksi.")
+        return
+
+    df = hist[['Close']].reset_index()
+    df.rename(columns={"Date": "ds", "Close": "y"}, inplace=True)
+
+    model = Prophet(daily_seasonality=True)
+    model.fit(df)
+
+    future = model.make_future_dataframe(periods=periode_hari)
+    forecast = model.predict(future)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], name='Harga Aktual'))
+    fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name='Prediksi Harga'))
+    fig.update_layout(title=f"Prediksi Harga Saham {ticker} ({periode_hari} Hari ke Depan)",
+                      xaxis_title="Tanggal", yaxis_title="Harga (Rp)")
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.write("### Tabel Prediksi")
+    prediksi_tampil = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(periode_hari)
+    prediksi_tampil.columns = ['Tanggal', 'Prediksi', 'Batas Bawah', 'Batas Atas']
+    prediksi_tampil['Prediksi'] = prediksi_tampil['Prediksi'].apply(lambda x: format_rupiah(x))
+    st.dataframe(prediksi_tampil)
+
+# ======== Fungsi Format dan Main ========
 def format_rupiah(nilai):
     try:
         return f"Rp{round(nilai):,}".replace(",", ".")
     except:
         return "Rp0"
 
+def main():
+    st.title("📊 Aplikasi Analisis Portofolio Saham + AI Prediksi")
+    portofolio = muat_portofolio()
+
+    st.header("📁 Portofolio Anda")
+    if not portofolio:
+        st.info("Belum ada saham dalam portofolio. Silakan tambahkan dulu.")
+        return
+
+    ticker_pred = st.selectbox("Pilih saham untuk prediksi harga:", list(portofolio.keys()))
+    periode = st.slider("Periode Prediksi (hari ke depan):", min_value=7, max_value=90, value=30)
+
+    if st.button("🔮 Jalankan Prediksi Prophet"):
+        prediksi_harga_saham_prophet(ticker_pred, periode)
+
+if __name__ == "__main__":
+    main()
+    
 def hitung_bunga_majemuk(modal_awal, tingkat_bunga, tahun):
     try:
         return modal_awal * (1 + tingkat_bunga/100) ** tahun

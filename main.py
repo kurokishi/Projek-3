@@ -30,7 +30,7 @@ class DummyModule:
 # Setup fallbacks dengan error handling lebih baik
 try:
     import yfinance as yf
-    yf.set_session(session)  # Set session dengan timeout
+    # yf.set_session(session)  # Set session dengan timeout
     YFINANCE_ENABLED = True
 except ImportError:
     yf = DummyModule()

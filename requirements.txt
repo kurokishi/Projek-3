@@ -1,13 +1,12 @@
 streamlit>=1.31.0
-pandas>=2.2.0
-yfinance
-numpy
-ta
-matplotlib
-keras
-beautifulsoup4
-plotly
-scikit-learn
-pypfopt
-tensorflow
+pandas>=1.5.0
+yfinance>=0.2.61
+numpy>=1.24.0
+ta>=0.11.0
+matplotlib>=3.7.0
+tensorflow>=2.12.0  # Gantikan keras dengan tensorflow
+beautifulsoup4>=4.12.0
+plotly>=5.14.0
+scikit-learn>=1.2.0
+pypfopt>=1.6.0
 requests

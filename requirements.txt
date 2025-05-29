@@ -6,6 +6,8 @@ ta
 matplotlib
 keras
 beautifulsoup4
-plotly>=5.18.0
+plotly
 scikit-learn
+pypfopt
+tensorflow
 requests

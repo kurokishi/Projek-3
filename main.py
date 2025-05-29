@@ -132,6 +132,7 @@ def prediksi_harga_saham_prophet(ticker, periode_hari=30):
 
     df = hist[['Close']].reset_index()
     df.rename(columns={"Date": "ds", "Close": "y"}, inplace=True)
+    df['ds'] = pd.to_datetime(df['ds']).dt.tz_localize(None)  # Hilangkan timezone
 
     model = Prophet(daily_seasonality=True)
     model.fit(df)
@@ -176,6 +177,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
     
 def hitung_bunga_majemuk(modal_awal, tingkat_bunga, tahun):
     try:

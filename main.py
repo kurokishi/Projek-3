@@ -27,7 +27,6 @@ class DummyModule:
     def __getattr__(self, name):
         return self
 
-# Setup fallbacks dengan error handling lebih baik
 try:
     import yfinance as yf
     YFINANCE_ENABLED = True
@@ -44,6 +43,31 @@ except ImportError:
     RSIIndicator = MACD = SMAIndicator = DummyModule()
     TA_ENABLED = False
     st.sidebar.error("⚠️ Library TA tidak terinstall (pip install ta)")
+
+# ======== Fungsi Portofolio ========
+def muat_portofolio(filename="portfolio.json"):
+    try:
+        if os.path.exists(filename):
+            with open(filename, "r") as f:
+                return json.load(f)
+        return {}
+    except json.JSONDecodeError:
+        st.error("❌ File portofolio corrupt. Membuat portofolio baru.")
+        return {}
+    except Exception as e:
+        st.error(f"❌ Gagal memuat portofolio: {str(e)}")
+        return {}
+
+def simpan_portofolio(data, filename="portfolio.json"):
+    try:
+        if os.path.exists(filename):
+            os.replace(filename, f"{filename}.bak")
+        with open(filename, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        st.error(f"❌ Gagal menyimpan portofolio: {str(e)}")
+        if os.path.exists(f"{filename}.bak"):
+            os.replace(f"{filename}.bak", filename)
 
 # ======== Fungsi Ambil Data Saham dengan Cache ========
 def ambil_data_saham(ticker, cache_dir="cache", ttl_jam=1):
@@ -87,22 +111,20 @@ def ambil_data_saham(ticker, cache_dir="cache", ttl_jam=1):
         st.error(f"❌ Gagal mengambil data {ticker}: {str(e)}")
         return pd.DataFrame(), {}
 
+# ======== Fungsi Lainnya ========
 def format_rupiah(nilai):
-    """Memformat angka menjadi format mata uang Rupiah"""
     try:
         return f"Rp{round(nilai):,}".replace(",", ".")
     except:
         return "Rp0"
 
 def hitung_bunga_majemuk(modal_awal, tingkat_bunga, tahun):
-    """Menghitung bunga majemuk untuk proyeksi investasi"""
     try:
         return modal_awal * (1 + tingkat_bunga/100) ** tahun
     except:
         return 0
 
 def proyeksi_investasi(modal_awal, tambahan_bulanan, tingkat_bunga, tahun):
-    """Menghitung proyeksi investasi dengan kontribusi bulanan"""
     hasil = []
     try:
         saldo = modal_awal
@@ -115,28 +137,23 @@ def proyeksi_investasi(modal_awal, tambahan_bulanan, tingkat_bunga, tahun):
     return hasil
 
 def hitung_alokasi_dana(modal, portofolio, harga_saham_terkini):
-    """Menghitung alokasi dana ke masing-masing saham dengan error handling"""
     try:
         total_nilai_portofolio = sum(data.get('total_investasi', 0) for data in portofolio.values())
-        
         if total_nilai_portofolio == 0:
             return []
-        
         alokasi = []
         for ticker, data in portofolio.items():
             try:
                 proporsi = data.get('total_investasi', 0) / total_nilai_portofolio
                 dana_dialokasikan = modal * proporsi
-                
                 harga_terkini = harga_saham_terkini.get(ticker, 0)
                 if harga_terkini and harga_terkini > 0:
-                    harga_per_lot = harga_terkini * 100  # 1 lot = 100 lembar
+                    harga_per_lot = harga_terkini * 100
                     jumlah_lot = int(dana_dialokasikan // harga_per_lot)
                     nilai_pembelian = jumlah_lot * harga_per_lot
                 else:
                     jumlah_lot = 0
                     nilai_pembelian = 0
-                
                 alokasi.append({
                     'Saham': ticker,
                     'Proporsi': proporsi,
@@ -148,23 +165,23 @@ def hitung_alokasi_dana(modal, portofolio, harga_saham_terkini):
             except Exception as e:
                 st.error(f"Gagal menghitung alokasi untuk {ticker}: {str(e)}")
                 continue
-        
         return alokasi
     except Exception as e:
         st.error(f"Gagal menghitung alokasi dana: {str(e)}")
         return []
 
 def tampilkan_status_sistem():
-    """Menampilkan panel status dependency"""
     with st.expander("ℹ️ Status Sistem", expanded=True):
         st.write(f"**Python version:** {python_version}")
         st.write(f"**yfinance:** {'✅' if YFINANCE_ENABLED else '❌'}")
         st.write(f"**Technical Analysis:** {'✅' if TA_ENABLED else '❌'}")
-        
         if not YFINANCE_ENABLED:
             st.warning("Fitur utama tidak tersedia tanpa yfinance")
 
-# ======== Antarmuka Aplikasi yang Diperbaiki ========
+# ======== Fungsi main() Anda tetap di sini (tidak berubah) ========
+# Salin fungsi main() dari versi sebelumnya tepat di bawah baris ini.
+# Fungsi ini akan tetap kompatibel dengan cache dan portofolio JSON.
+
 def main():
     st.title("📊 Aplikasi Analisis Portofolio Saham")
     
